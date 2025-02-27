@@ -112,26 +112,7 @@ public class GameScreen extends ScreenAdapter {
                     viewport.getTopGutterHeight() + viewport.getScreenHeight(),
                     0.0f, MAP_HEIGHT, screenY)
                 );
-                Gdx.app.log("dev", "Touch at tile: (" + row + ", " + column + ")");
-                Gdx.app.log("dev", "Pusing road cell: (" + autoTiler.getCellAt(column, row).x + ", " + autoTiler.getCellAt(column, row).y + ")");
-
                 road.pushRoad(autoTiler.getCellAt(column, row));
-
-                //Gdx.app.log("dev", "Touch at: (" + screenX + ", " + screenY + ")");
-
-
-                // use this if tile dimension to viewport isn't 1:1
-                // float tileHeight = (float) viewport.getScreenHeight() / MAP_HEIGHT;
-                // float tileWidth = (float) viewport.getScreenWidth() / MAP_WIDTH;
-                // Gdx.app.log("dev", "Drawing at: (" + centerX + ", " + ((tileSize * MAP_HEIGHT) - centerY) + ")");
-
-//                Gdx.app.log("dev", "At texture region: ("
-//                    + autoTiler.getTileAt(row, column).getTextureRegion().getRegionX() + ", "
-//                    + autoTiler.getTileAt(row, column).getTextureRegion().getRegionY() + ")");
-
-
-                // autoTiler.getTileAt(row, column);
-                // map.getTileSets().getTile(1).getOffsetX();
 
                 return true;
             }
@@ -177,11 +158,6 @@ public class GameScreen extends ScreenAdapter {
         road.begin();
         road.drawActiveRoad();
         road.end();
-
-//        roadBatch.begin();
-//        roadDrawer.circle(activeCell.x, activeCell.y, autoTiler.getTileWidth() / 3.0f);
-//        roadDrawer.line(0, 0, 100, 100);
-//        roadBatch.end();
 
         // Render text prompt
         screenViewport.apply(true);
