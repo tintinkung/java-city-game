@@ -76,8 +76,11 @@ public class GameScreen extends ScreenAdapter {
         // Auto generate a new map
         autoTiler = new AutoTiler(MAP_WIDTH, MAP_HEIGHT, Gdx.files.internal("tileset.json"));
         map = autoTiler.generateMap();
+        map.getLayers().get(0).setVisible(false);
         tileSize = autoTiler.getTileWidth();
         MapLayers layers = map.getLayers();
+
+
 
         // DEV ONLY: make debug checkerboard layer
         Gdx.app.log("dev", "automated tile map at layer: " + layers.size());

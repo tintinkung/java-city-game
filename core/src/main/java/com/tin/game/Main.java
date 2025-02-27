@@ -10,7 +10,7 @@ public class Main extends Game {
     @Override
     public void create() {
         gameScreen = new GameScreen();
-        Gdx.app.log("Log", "Game Created");
+        Gdx.app.log("Log", "Game Created AAAAAA");
         setScreen(gameScreen);
     }
 

@@ -68,6 +68,7 @@ public class RoadDrawer implements Disposable {
             drawer.setColor(Color.GRAY);
             drawer.circle(center.x, center.y, RADIUS);
 
+
             drawer.setColor(Color.LIGHT_GRAY);
             drawer.filledCircle(center, RADIUS - 2);
 
