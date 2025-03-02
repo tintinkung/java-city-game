@@ -57,7 +57,9 @@ public class RoadDrawer implements Disposable {
     }
 
     public void pushRoad(int column, int row) {
-        // if(lastCol == column && lastRow == row) return;
+
+        // exact same position
+        if(lastCol == column && lastRow == row) return;
 
         //if(pending.isOccupied()) return; // Do something later
 
@@ -71,24 +73,13 @@ public class RoadDrawer implements Disposable {
         MapCell pendingCell = drawMap.getCellAt(lastCol,  lastRow);
         MapCell confirmCell = drawMap.getCellAt(column, row);
 
-        // if pending == true, that mean lastRow and lastCol has not been drawn yet
-
-//        if(roadMap.hasRoad(lastCol, lastRow) && roadMap.hasRoad(column, row)) {
-//            lastCol = column;
-//            lastRow = row;
-//            return;
-//        }
 
         if(MapCell.isAdjacent(pendingCell, confirmCell)) {
             // CELL_BITS adjacency = MapCell.checkAdjacencyType(latestCell, confirmCell);
             roadMap.pushRoad(pendingCell, confirmCell);
-            lastCol = column;
-            lastRow = row;
         }
-        else {
-            lastCol = column;
-            lastRow = row;
-        }
+        lastCol = column;
+        lastRow = row;
     }
 
     public void depthFirstTraversal(
@@ -102,13 +93,6 @@ public class RoadDrawer implements Disposable {
                 depthFirstTraversalEdges(node, visitedEdges, visitedNodes);
             }
         });
-
-//        for (Position node : allNodes) {
-//            if (!visitedNodes.contains(node)) {
-//                System.out.println("Starting new DFS from: " + node);
-//                depthFirstTraversalEdges(node, visitedEdges, visitedNodes);
-//            }
-//        }
     }
 
 
@@ -116,6 +100,7 @@ public class RoadDrawer implements Disposable {
         Position start,
         ObjectSet<OrderedSet<Position>> visitedEdges,
         ObjectSet<Position> visitedNodes) {
+
         if (visitedNodes.contains(start)) return; // Avoid duplicate node visits
 
         visitedNodes.add(start);
@@ -146,20 +131,6 @@ public class RoadDrawer implements Disposable {
 
     public void drawActiveRoad() {
         if(roadMap.size() < 2) return;
-
-        // Gdx.app.log("dev", "road map: " + roadMap.toString());
-
-//        ObjectSet<OrderedSet<Position>> visitedEdges = new ObjectSet<>();
-//        ObjectSet<Position>  visitedNodes = new ObjectSet<>();
-//
-//        ObjectMap.Keys<Position> keys = roadMap.getPositions();
-//        Position start = null;
-//        for(Position key : keys) {
-//            start = key;
-//            break;
-//        }
-//        depthFirstTraversalEdges(start, visitedEdges, visitedNodes);
-
         ObjectSet<OrderedSet<Position>> visitedEdges = new ObjectSet<>();
 
         depthFirstTraversal(roadMap.getPositions(), visitedEdges);
@@ -175,8 +146,6 @@ public class RoadDrawer implements Disposable {
         visitedEdges.forEach((edges) -> {
             Array<Position> toDraw = edges.orderedItems();
             if(toDraw.size == 1) return; // BUG
-            // Gdx.app.log("dev", "========== "+ toDraw.size);
-
 
             Position fromPos = toDraw.get(0);
             Position toPos = toDraw.get(1);
@@ -184,56 +153,18 @@ public class RoadDrawer implements Disposable {
             MapCell from = drawMap.getCellAt(fromPos.col, fromPos.row);
             MapCell to = drawMap.getCellAt(toPos.col, toPos.row);
 
-            //Gdx.app.log("dev", "==========");
-
             float[] vertices = makeAdjacencyVertices(from, to);
-            //Gdx.app.log("dev", "==========");
 
             Polygon polygon = new Polygon(vertices);
             polygon.setOrigin(from.getCenter().x, from.getCenter().y);
+
             // draw connection line
             drawer.setColor(Color.LIGHT_GRAY);
             drawer.filledPolygon(polygon);
             drawer.setColor(Color.GRAY);
             drawer.line(vertices[0], vertices[1], vertices[2], vertices[3]);
             drawer.line(vertices[6], vertices[7], vertices[4], vertices[5]);
-
-//            for(Position draw : toDraw) {
-//                Gdx.app.log("dev", "drawing: (" + draw.col + ", " + draw.row + ")");
-//
-//            }
-
         });
-
-
-//        for (int i = 0; i < activeRoad.size; i++) {
-//            Vector2 center = activeRoad.get(i).getCenter();
-//            drawer.setColor(Color.GRAY);
-//            drawer.circle(center.x, center.y, RADIUS);
-//
-//
-//            drawer.setColor(Color.LIGHT_GRAY);
-//            drawer.filledCircle(center, RADIUS - 2);
-//
-//            if(i > 0) {
-//                MapCell from = activeRoad.get(i - 1);
-//                MapCell to = activeRoad.get(i);
-//
-//                float[] vertices = makeAdjacencyVertices(from, to);
-//
-//                Polygon polygon = new Polygon(vertices);
-//                polygon.setOrigin(from.getCenter().x, from.getCenter().y);
-//
-//                // draw connection line
-//                drawer.setColor(Color.LIGHT_GRAY);
-//                drawer.filledPolygon(polygon);
-//
-//
-//                drawer.setColor(Color.GRAY);
-//                drawer.line(vertices[0], vertices[1], vertices[2], vertices[3]);
-//                drawer.line(vertices[6], vertices[7], vertices[4], vertices[5]);
-//            }
-//        }
     }
 
     public void begin() {
