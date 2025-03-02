@@ -1,16 +1,46 @@
 package com.tin.game;
 
 import com.badlogic.gdx.maps.tiled.TiledMapTileLayer;
+import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
+import com.badlogic.gdx.utils.IntMap;
 
-import java.util.HashMap;
+import static com.tin.game.Config.MAP_HEIGHT;
+import static com.tin.game.Config.TILE_SIZE;
+import com.tin.game.RoadMap.Position;
 
 public class MapCell extends TiledMapTileLayer.Cell {
     public final int x;
     public final int y;
-    private int tileSize;
-    private Vector2 center;
-    private HashMap<Integer, Vector2> corner;
+
+    private CELL_TYPE type;
+
+    /**
+     * The center viewport position of this cell on the board
+     */
+    private final Vector2 center;
+
+    /**
+     * 8 corner reference position from the center of this cell by radius
+     */
+    private final IntMap<Vector2> corner;
+
+    public enum CELL_TYPE {
+        NONE(0),
+        ROAD(1),
+        HOUSE(2),
+        STORE(3);
+
+        private final int value;
+
+        CELL_TYPE(int value) {
+            this.value = value;
+        }
+
+        public int id() {
+            return value;
+        }
+    }
 
     public enum CELL_BITS {
         TOP(0),
@@ -34,29 +64,32 @@ public class MapCell extends TiledMapTileLayer.Cell {
     }
 
 
-    MapCell(int screenX, int screenY, int tileSize) {
+    MapCell(int screenX, int screenY) {
         super();
-        this.tileSize = tileSize;
         this.x = screenX;
         this.y = screenY;
         this.center = new Vector2();
-        this.corner = new HashMap<>();
-        initPositions();
+        this.corner = new IntMap<>();
+        this.type = CELL_TYPE.NONE;
+        initPositions(RoadDrawer.RADIUS);
     }
 
-    public void initPositions() {
-        float centerX = (float) this.x + (tileSize / 2.0f);
-        float centerY = (float) this.y - (tileSize / 2.0f);
+    public void initPositions(float radius) {
+        float centerX = (float) this.x + (TILE_SIZE / 2.0f);
+        float centerY = (float) this.y - (TILE_SIZE / 2.0f);
         this.center.set(centerX, centerY);
 
-        corner.put(CELL_BITS.TOP.id(), new Vector2(centerX, centerY + RoadDrawer.RADIUS));
-        corner.put(CELL_BITS.LEFT.id(), new Vector2(centerX - RoadDrawer.RADIUS, centerY));
-        corner.put(CELL_BITS.RIGHT.id(), new Vector2(centerX + RoadDrawer.RADIUS, centerY));
-        corner.put(CELL_BITS.BOTTOM.id(), new Vector2(centerX, centerY - RoadDrawer.RADIUS));
-        corner.put(CELL_BITS.TOP_LEFT.id(), corner.get(CELL_BITS.TOP.id()).cpy().rotateAroundDeg(this.center, 45.0f));
-        corner.put(CELL_BITS.TOP_RIGHT.id(), corner.get(CELL_BITS.RIGHT.id()).cpy().rotateAroundDeg(this.center, 45.0f));
-        corner.put(CELL_BITS.BOTTOM_LEFT.id(), corner.get(CELL_BITS.LEFT.id()).cpy().rotateAroundDeg(this.center, 45.0f));
-        corner.put(CELL_BITS.BOTTOM_RIGHT.id(), corner.get(CELL_BITS.BOTTOM.id()).cpy().rotateAroundDeg(this.center, 45.0f));
+        float cos = radius * MathUtils.cosDeg(45.0f);
+        float sin = radius * MathUtils.sinDeg(45.0f);
+
+        corner.put(CELL_BITS.TOP.id(), new Vector2(centerX, centerY + radius));
+        corner.put(CELL_BITS.LEFT.id(), new Vector2(centerX - radius, centerY));
+        corner.put(CELL_BITS.RIGHT.id(), new Vector2(centerX + radius, centerY));
+        corner.put(CELL_BITS.BOTTOM.id(), new Vector2(centerX, centerY - radius));
+        corner.put(CELL_BITS.TOP_LEFT.id(), new Vector2(centerX - cos, centerY + sin));
+        corner.put(CELL_BITS.TOP_RIGHT.id(), new Vector2(centerX + cos, centerY + sin));
+        corner.put(CELL_BITS.BOTTOM_LEFT.id(), new Vector2(centerX - cos, centerY - sin));
+        corner.put(CELL_BITS.BOTTOM_RIGHT.id(), new Vector2(centerX + cos, centerY - sin));
     }
 
     public Vector2 getCenter() {
@@ -67,32 +100,54 @@ public class MapCell extends TiledMapTileLayer.Cell {
         return corner.get(cornerBits.id());
     }
 
-    public int getTileSize() {
-        return tileSize;
+    public CELL_TYPE getType() {
+        return  this.type;
+    }
+
+    /**
+     * Get the Road Map {@link RoadMap.Position} of this cell.
+     * @return Position by row and column
+     */
+    public Position getPosition() {
+        return remapScreenToCell(this.x, this.y);
+    }
+
+    public static Position remapScreenToCell(int screenX, int screenY) {
+        return new Position(
+            Math.floorDiv(screenX, TILE_SIZE),
+            Math.floorDiv(TILE_SIZE * MAP_HEIGHT - screenY, TILE_SIZE)
+        );
+    }
+
+    public void setType(CELL_TYPE type) {
+        this.type = type;
+    }
+
+    public boolean isOccupied() {
+        return type.id() != CELL_TYPE.NONE.id();
+    }
+
+    public void clearCell() {
+        this.type = CELL_TYPE.NONE;
     }
 
     public static CELL_BITS checkAdjacencyType(MapCell from, MapCell to) {
-        int unit = to.getTileSize();
-
-        if(to.x - from.x == unit) { // right adjacency
-            if(to.y - from.y == unit) // up adjacency
-                return CELL_BITS.TOP_RIGHT;
-            else if(from.y - to.y == unit)
-                return CELL_BITS.BOTTOM_RIGHT;
+        if(to.x - from.x == TILE_SIZE) { // right adjacency
+            // up adjacency
+            if(to.y - from.y == TILE_SIZE) return CELL_BITS.TOP_RIGHT;
+            else if(from.y - to.y == TILE_SIZE) return CELL_BITS.BOTTOM_RIGHT;
             else return CELL_BITS.RIGHT;
         }
-        else if(from.x - to.x == unit) { // left adjacency
-            if(to.y - from.y == unit) // up adjacency
-                return CELL_BITS.TOP_LEFT;
-            else if(from.y - to.y == unit)
-                return CELL_BITS.BOTTOM_LEFT;
+        else if(from.x - to.x == TILE_SIZE) { // left adjacency
+            // up adjacency
+            if(to.y - from.y == TILE_SIZE) return CELL_BITS.TOP_LEFT;
+            else if(from.y - to.y == TILE_SIZE) return CELL_BITS.BOTTOM_LEFT;
             else return CELL_BITS.LEFT;
         }
         else { // no x adjacency, must be y
-            if(to.y - from.y == unit) // up adjacency
-                return CELL_BITS.TOP;
-            else if(from.y - to.y == unit)
-                return CELL_BITS.BOTTOM;
+            // up adjacency
+            if(to.y - from.y == TILE_SIZE) return CELL_BITS.TOP;
+            else if(from.y - to.y == TILE_SIZE) return CELL_BITS.BOTTOM;
         }
 
         return null;
@@ -101,8 +156,8 @@ public class MapCell extends TiledMapTileLayer.Cell {
     public static float[] extractVertices(
         MapCell from,
         MapCell to,
-        MapCell.CELL_BITS cornerFrom,
-        MapCell.CELL_BITS cornerTo) {
+        CELL_BITS cornerFrom,
+        CELL_BITS cornerTo) {
         Vector2 xFrom = from.getCorner(cornerFrom);
         Vector2 xTo = to.getCorner(cornerFrom);
         Vector2 yTo = to.getCorner(cornerTo);
@@ -116,7 +171,7 @@ public class MapCell extends TiledMapTileLayer.Cell {
         };
     }
 
-    public static boolean checkAdjacency(MapCell from, MapCell to) {
-        return Math.abs(to.x - from.x) <= to.getTileSize() && Math.abs(to.y - from.y) <= to.getTileSize();
+    public static boolean isAdjacent(MapCell from, MapCell to) {
+        return Math.abs(to.x - from.x) <= TILE_SIZE && Math.abs(to.y - from.y) <= TILE_SIZE;
     }
 }

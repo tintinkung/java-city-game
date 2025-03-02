@@ -7,18 +7,11 @@ import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.maps.tiled.TiledMapTileLayer;
 import com.badlogic.gdx.maps.tiled.tiles.StaticTiledMapTile;
 
+import static com.tin.game.Config.MAP_WIDTH;
+import static com.tin.game.Config.MAP_HEIGHT;
+import static com.tin.game.Config.TILE_SIZE;
+
 public class TiledMapDebug {
-
-    private final int MAP_WIDTH;
-    private final int MAP_HEIGHT;
-    private final int TILE_SIZE;
-
-    TiledMapDebug(int mapWidth, int mapHeight, int tileSize) {
-        MAP_WIDTH = mapWidth;
-        MAP_HEIGHT = mapHeight;
-        TILE_SIZE = tileSize;
-    }
-
 
     /**
      * Create a simple black and white checkerboard layer over this tiled map.
