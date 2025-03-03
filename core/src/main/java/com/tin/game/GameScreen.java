@@ -152,7 +152,7 @@ public class GameScreen extends ScreenAdapter {
 
         // road drawing
         road.begin();
-        road.drawActiveRoad();
+        road.drawActiveRoad(delta);
         road.end();
 
         // Render text prompt

@@ -153,7 +153,7 @@ public class MapCell extends TiledMapTileLayer.Cell {
     }
 
     public Vector2 getCenter() {
-        return this.center;
+        return this.center.cpy();
     }
 
     public Vector2 getCorner(CELL_BITS cornerBits) {
