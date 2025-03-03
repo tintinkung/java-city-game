@@ -15,6 +15,7 @@ import space.earlygrey.shapedrawer.ShapeDrawer;
 import java.util.Objects;
 import com.tin.game.MapCell.CELL_BITS;
 import com.tin.game.MapCell.CELL_TYPE;
+import com.tin.game.MapCell.LANE;
 import com.tin.game.RoadMap.Position;
 
 // ShaperDrawer based road path drawer
@@ -101,12 +102,12 @@ public class RoadDrawer implements Disposable {
         ObjectSet<OrderedSet<Position>> visitedEdges,
         ObjectSet<Position> visitedNodes) {
 
-        if (visitedNodes.contains(start)) return; // Avoid duplicate node visits
+        if(visitedNodes.contains(start)) return; // Avoid duplicate node visits
 
         visitedNodes.add(start);
 
-        for (MapCell edge : roadMap.getAdjacency(start, new RoadMap.AdjacencySet())) {
-            Position neighbor = edge.getPosition();
+        for(MapCell adjacency : roadMap.getAdjacency(start, new RoadMap.AdjacencySet())) {
+            Position neighbor = adjacency.getPosition();
 
             OrderedSet<Position> edgeKeys = new OrderedSet<>(2);
             OrderedSet<Position> reverseKeys = new OrderedSet<>(2);
@@ -164,6 +165,14 @@ public class RoadDrawer implements Disposable {
             drawer.setColor(Color.GRAY);
             drawer.line(vertices[0], vertices[1], vertices[2], vertices[3]);
             drawer.line(vertices[6], vertices[7], vertices[4], vertices[5]);
+
+            Vector2[] lanes = connectLane(from, to);
+            drawer.setColor(Color.CYAN);
+            drawer.line(lanes[0], lanes[1]);
+            drawer.setColor(Color.ORANGE);
+            drawer.line(lanes[2], lanes[3]);
+
+
         });
     }
 
@@ -177,6 +186,52 @@ public class RoadDrawer implements Disposable {
 
     public void dispose() {
         drawTexture.dispose();
+    }
+
+    private Vector2[] connectLane(MapCell from, MapCell to) {
+        CELL_BITS adjacency = MapCell.checkAdjacencyType(from, to);
+        Vector2[] vertices = new Vector2[4];
+        if(adjacency == null) return vertices;
+
+        Vector2 lhsFrom = from.getLane(adjacency, LANE.LEFT);
+        Vector2 lhsTo = to.getLane(adjacency.opposite(), LANE.RIGHT);
+        Vector2 rhsFrom = from.getLane(adjacency, LANE.RIGHT);
+        Vector2 rhsTo = to.getLane(adjacency.opposite(), LANE.LEFT);
+        vertices[0] = lhsFrom;
+        vertices[1] = lhsTo;
+        vertices[2] = rhsFrom;
+        vertices[3] = rhsTo;
+        return vertices;
+//
+//        switch (Objects.requireNonNull(adjacency)) {
+//            // Straight connections
+//            case TOP:
+//                vertices[0] = from.
+//                vertices[1] =
+//                vertices[2] =
+//                vertices[3] =
+//                vertices[4] =
+//                vertices[5] =
+//                vertices[6] =
+//                vertices[7] =
+//                break;
+//            case BOTTOM:
+//                break;
+//            case LEFT:
+//                break;
+//            case RIGHT:
+//                break;
+//            // Diagonal connections
+//            case TOP_LEFT:
+//                break;
+//            case TOP_RIGHT:
+//                break;
+//            case BOTTOM_LEFT:
+//                break;
+//            case BOTTOM_RIGHT:
+//                break;
+//        }
+//        return vertices;
     }
 
     private float[] makeAdjacencyVertices(MapCell from, MapCell to) {
