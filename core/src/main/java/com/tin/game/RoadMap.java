@@ -36,25 +36,29 @@ public class RoadMap {
     }
 
     private void putIfAbsent(MapCell cell, AdjacencySet adjacency) {
-        if(hasRoad(cell.getPosition())) return;
+        if(hasRoad(cell.pos)) return;
         cell.setType(MapCell.CELL_TYPE.ROAD);
-        put(cell.getPosition(), adjacency);
+        put(cell.pos, adjacency);
     }
 
     public void pushRoad(MapCell from, MapCell to) {
+
+        // put key node with blank adjacency
         putIfAbsent(from, new AdjacencySet());
         putIfAbsent(to, new AdjacencySet());
+        if(from.equals(to)) return;
 
-        getAdjacency(from.getPosition()).add(to);
-        getAdjacency(to.getPosition()).add(from);
+        // add adjacency to node
+        getAdjacency(from.pos).add(to);
+        getAdjacency(to.pos).add(from);
     }
 
     public void removeRoad(MapCell cell) {
-        AdjacencySet adjacency = getAdjacency(cell.getPosition());
+        AdjacencySet adjacency = getAdjacency(cell.pos);
 
         // clear connections
         adjacency.forEach((adj) -> {
-            getAdjacency(adj.getPosition()).remove(cell);
+            getAdjacency(adj.pos).remove(cell);
         });
 
         //delete itself
@@ -110,6 +114,26 @@ public class RoadMap {
         return roadMap.keys();
     }
 
+    @Override
+    public String toString() {
+        StringBuilder result = new StringBuilder();
+        roadMap.forEach((node) -> {
+            result.append(node.key.toString());
+            result.append(": {");
+            node.value.forEach((edges) -> {
+                if(result.charAt(result.length() - 1) == ')')
+                    result.append(", ");
+
+                result.append("(")
+                    .append(edges.pos.col).append(", ")
+                    .append(edges.pos.row).append(")");
+            });
+            result.append("}\n");
+        });
+
+        return result.toString();
+    }
+
     public static class Position {
         public final int row, col;
 
@@ -129,6 +153,11 @@ public class RoadMap {
         @Override
         public int hashCode() {
             return Objects.hash(row, col);
+        }
+
+        @Override
+        public String toString() {
+            return "(" + col + ", " + row + ")";
         }
     }
 

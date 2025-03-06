@@ -5,13 +5,17 @@ import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.IntMap;
 
-import static com.tin.game.Config.MAP_HEIGHT;
-import static com.tin.game.Config.TILE_SIZE;
 import com.tin.game.RoadMap.Position;
 
+import static com.tin.game.Config.*;
+import static com.tin.game.Config.MAP_WIDTH;
+
 public class MapCell extends TiledMapTileLayer.Cell {
+
     public final int x;
     public final int y;
+
+    public final Position pos;
 
     private CELL_TYPE type;
 
@@ -97,10 +101,11 @@ public class MapCell extends TiledMapTileLayer.Cell {
     }
 
 
-    MapCell(int screenX, int screenY) {
+    MapCell(int screenX, int screenY, int col, int row) {
         super();
         this.x = screenX;
         this.y = screenY;
+        this.pos = new Position(col, row);
         this.type = CELL_TYPE.NONE;
         this.center = new Vector2();
         this.corner = new IntMap<>();
@@ -160,6 +165,10 @@ public class MapCell extends TiledMapTileLayer.Cell {
         return corner.get(cornerBits.id());
     }
 
+    public Vector2 getCorner(int cornerBits) {
+        return corner.get(cornerBits);
+    }
+
     /**
      * Get a lane's key coordinate to determine path drawing
      * @param cornerBits The Cell bits to get lane from
@@ -185,19 +194,47 @@ public class MapCell extends TiledMapTileLayer.Cell {
         return  this.type;
     }
 
-    /**
-     * Get the Road Map {@link RoadMap.Position} of this cell.
-     * @return Position by row and column
-     */
-    public Position getPosition() {
-        return remapScreenToCell(this.x, this.y);
-    }
-
-    public static Position remapScreenToCell(int screenX, int screenY) {
+    /**@deprecated  */
+    public static Position positionFromCoordinate(int screenX, int screenY) {
         return new Position(
             Math.floorDiv(screenX, TILE_SIZE),
             Math.floorDiv(TILE_SIZE * MAP_HEIGHT - screenY, TILE_SIZE)
         );
+    }
+
+    public static Position remapScreenToCell(int screenX, int screenY) {
+        return remapScreenToCell((float) screenX, (float) screenY);
+    }
+
+    public static Position remapScreenToCell(Vector2 coordinate) {
+        return remapScreenToCell(coordinate.x, coordinate.y);
+    }
+
+
+    /**
+     * Remap viewport coordinate into what cell position it is in.
+     * @param screenX viewport X position anywhere in between a cell.
+     * @param screenY viewport Y position anywhere in between a cell.
+     * @return The cell position if found, null if not.
+     */
+    public static Position remapScreenToCell(float screenX, float screenY) {
+        int column =  MathUtils.floor(
+            MathUtils.map(0.0f,
+                MAP_WIDTH * TILE_SIZE,
+                0.0f, MAP_WIDTH, screenX)
+        );
+
+        if(column < 0 || column >= MAP_WIDTH) return null;
+
+        int row = MathUtils.floor(
+            MathUtils.map(0.0f,
+                MAP_HEIGHT * TILE_SIZE,
+                MAP_HEIGHT, 0.0f, screenY)
+        );
+
+        if(row < 0 || row >= MAP_HEIGHT) return null;
+
+        return new Position(column, row);
     }
 
     public void setType(CELL_TYPE type) {
@@ -254,5 +291,13 @@ public class MapCell extends TiledMapTileLayer.Cell {
 
     public static boolean isAdjacent(MapCell from, MapCell to) {
         return Math.abs(to.x - from.x) <= TILE_SIZE && Math.abs(to.y - from.y) <= TILE_SIZE;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (obj == null || getClass() != obj.getClass()) return false;
+        MapCell other = (MapCell) obj;
+        return this.pos == other.pos;
     }
 }

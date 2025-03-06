@@ -77,10 +77,9 @@ public class GameScreen extends ScreenAdapter {
         Gdx.app.log("dev", "automated tile map at layer: " + layers.size());
 
         TiledMapDebug debugLayer = new TiledMapDebug();
-        TiledMapTileLayer debugCheckerboard = debugLayer.getCheckerBoard(0.25f);
-        layers.add(debugCheckerboard);
-        debugCheckerboard.setVisible(true);
-        debugCheckerboard.setOpacity(0.5f);
+        TiledMapTileLayer tileGrid = debugLayer.getTileGrid(false);
+        layers.add(tileGrid);
+        tileGrid.setVisible(true);
 
         // Setup map renderer
         final float unitScale = 1f / Math.max(autoTiler.getTileWidth(), autoTiler.getTileHeight());

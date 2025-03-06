@@ -10,6 +10,7 @@ import com.badlogic.gdx.maps.tiled.TiledMapTileLayer;
 import com.badlogic.gdx.maps.tiled.TiledMapTileSet;
 import com.badlogic.gdx.maps.tiled.tiles.StaticTiledMapTile;
 import com.badlogic.gdx.utils.Array;
+import com.badlogic.gdx.utils.GdxRuntimeException;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -125,7 +126,7 @@ public class AutoTiler {
                 int x = (col * tileWidth);
                 int y = (tileHeight * mapHeight) - (row * tileHeight);
 
-                final MapCell cell = new MapCell(x, y);
+                final MapCell cell = new MapCell(x, y, col, row);
                 cell.setTile(tileSet.getTile(tileId));
                 mapLayer.setCell(col, row, cell);
             }
@@ -410,11 +411,11 @@ public class AutoTiler {
      * @throws IndexOutOfBoundsException when cell does not exist
      * @return The MapCell
      */
-    public MapCell getCellAt(int row, int column) {
-        TiledMapTileLayer.Cell cell = mapLayer.getCell(row, column);
+    public MapCell getCellAt(int column, int row) {
+        TiledMapTileLayer.Cell cell = mapLayer.getCell(column, row);
 
-        if(cell == null) throw new IndexOutOfBoundsException("Cell does not exist");
+        if(cell == null) throw new GdxRuntimeException(new IndexOutOfBoundsException("Cell does not exist"));
 
-        return (MapCell) mapLayer.getCell(row, column);
+        return (MapCell) mapLayer.getCell(column, row);
     }
 }

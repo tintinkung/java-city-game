@@ -7,22 +7,25 @@ import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.Sprite;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
-import com.badlogic.gdx.math.Bezier;
-import com.badlogic.gdx.math.MathUtils;
-import com.badlogic.gdx.math.Polygon;
-import com.badlogic.gdx.math.Vector2;
+import com.badlogic.gdx.math.*;
 import com.badlogic.gdx.utils.*;
+import com.badlogic.gdx.utils.viewport.Viewport;
 import space.earlygrey.shapedrawer.JoinType;
 import space.earlygrey.shapedrawer.ShapeDrawer;
 
 import java.util.Objects;
+import java.util.Random;
+
 import com.tin.game.MapCell.CELL_BITS;
 import com.tin.game.MapCell.CELL_TYPE;
 import com.tin.game.MapCell.LANE;
 import com.tin.game.RoadMap.Position;
 
+import static com.tin.game.Config.*;
+
 // ShaperDrawer based road path drawer
 public class RoadDrawer implements Disposable {
+
 
     public static final float RADIUS = 10.0f;
     public static final float LINE_WIDTH = 4.0f;
@@ -35,11 +38,17 @@ public class RoadDrawer implements Disposable {
     private Texture drawTexture;
     private int lastRow, lastCol;
 
+    private Position debugStart;
+
     float speed = 0.010f;
     float current = 0;
     int k = 300; //increase k for more fidelity to the spline
     private Sprite devCar;
     private TextureRegion carTexture;
+
+    private final Random random;
+    private Array<Position> debugHouse;
+
 
     OrderedSet<Array<Vector2>> allPath;
 
@@ -51,6 +60,7 @@ public class RoadDrawer implements Disposable {
         this.drawMap = drawMap;
         this.roadMap = new RoadMap();
         this.allPath = new OrderedSet<>();
+        this.random = new Random();
         initDrawer();
     }
 
@@ -58,7 +68,9 @@ public class RoadDrawer implements Disposable {
         drawBatch = new SpriteBatch();
 
         Pixmap roadPixmap = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
-        roadPixmap.setColor(Color.GRAY);
+
+        // Main tint, this brightens all the road
+        roadPixmap.setColor(new Color(0x7f7f7fff));
         roadPixmap.drawPixel(0, 0);
         drawTexture = new Texture(roadPixmap); //remember to dispose of later
         roadPixmap.dispose();
@@ -73,10 +85,18 @@ public class RoadDrawer implements Disposable {
         carTexture = new TextureRegion(new Texture(carPixmap), 50, 50, 16, 16);
         devCar = new Sprite(carTexture);
         this.devCar.setPosition(100, 100);
+
+        debugHouse = getDebugHouse();
+        MapCell house1 = drawMap.getCellAt(debugHouse.get(0).col, debugHouse.get(0).row);
+        MapCell road1 = drawMap.getCellAt(debugHouse.get(1).col, debugHouse.get(1).row);
+        MapCell house2 = drawMap.getCellAt(debugHouse.get(2).col, debugHouse.get(2).row);
+        MapCell road2 = drawMap.getCellAt(debugHouse.get(3).col, debugHouse.get(3).row);
+
+        roadMap.pushRoad(house1, road1);
+        roadMap.pushRoad(house2, road2);
     }
 
     public void pushRoad(int column, int row) {
-
         // exact same position
         if(lastCol == column && lastRow == row) return;
 
@@ -86,7 +106,11 @@ public class RoadDrawer implements Disposable {
         if(roadMap.isEmpty()) {
             lastCol = column;
             lastRow = row;
+
+            // dev stuff for debugging
             Gdx.app.log("dev", "first click! (" + lastCol + ", " + lastRow + ")");
+            debugStart = new Position(column, row);
+
         }
 
         MapCell pendingCell = drawMap.getCellAt(lastCol,  lastRow);
@@ -106,9 +130,22 @@ public class RoadDrawer implements Disposable {
         OrderedSet<OrderedSet<Position>> visitedEdges) {
 
         OrderedSet<Position> visitedNodes = new OrderedSet<>();
+        Gdx.app.log("dev", "drawer: \n" + roadMap.toString());
+
+
+
+        for (int i = 0; i < debugHouse.size; i++) {
+            if(i % 2 == 0) {
+                // todo: find a correct start node
+                depthFirstTraversalEdges(debugHouse.get(i), visitedEdges, visitedNodes);
+            }
+        }
 
         allNodes.forEach((node) -> {
+            Gdx.app.log("dev", "= = = = = =");
+
             if (!visitedNodes.contains(node)) {
+
                 depthFirstTraversalEdges(node, visitedEdges, visitedNodes);
             }
         });
@@ -125,7 +162,7 @@ public class RoadDrawer implements Disposable {
         visitedNodes.add(start);
 
         for(MapCell adjacency : roadMap.getAdjacency(start, new RoadMap.AdjacencySet())) {
-            Position neighbor = adjacency.getPosition();
+            Position neighbor = adjacency.pos;
 
             OrderedSet<Position> edgeKeys = new OrderedSet<>(2);
             OrderedSet<Position> reverseKeys = new OrderedSet<>(2);
@@ -141,7 +178,7 @@ public class RoadDrawer implements Disposable {
 
             if (!visitedEdges.contains(edgeKeys) && !visitedEdges.contains(reverseKeys)) {
                 visitedEdges.add(edgeKeys);
-                // System.out.println("Edge: " + start + " -> " + neighbor);
+                Gdx.app.log("dev", "traversing: (" + start.col + ", " + start.row + ")(" + neighbor.col + ", " + neighbor.row + ")");
 
                 depthFirstTraversalEdges(neighbor, visitedEdges, visitedNodes);
             }
@@ -157,14 +194,17 @@ public class RoadDrawer implements Disposable {
 
         roadMap.getPositions().forEach((node) -> {
             Vector2 center = drawMap.getCellAt(node.col, node.row).getCenter();
-            drawer.setColor(Color.GRAY);
-            drawer.circle(center.x, center.y, RADIUS);
             drawer.setColor(Color.LIGHT_GRAY);
+            drawer.circle(center.x, center.y, RADIUS);
+            drawer.setColor(Color.GRAY);
             drawer.filledCircle(center, RADIUS - 2);
         });
 
+        Gdx.app.log("dev", "= = = = = =");
 
-        visitedEdges.forEach((edges) -> {
+        allPath.clear();
+
+        visitedEdges.orderedItems().forEach((edges) -> {
             Array<Position> toDraw = edges.orderedItems();
             if(toDraw.size == 1) return; // BUG
             Position fromPos = toDraw.get(0);
@@ -179,9 +219,9 @@ public class RoadDrawer implements Disposable {
             polygon.setOrigin(from.getCenter().x, from.getCenter().y);
 
             // draw connection line
-            drawer.setColor(Color.LIGHT_GRAY);
-            drawer.filledPolygon(polygon);
             drawer.setColor(Color.GRAY);
+            drawer.filledPolygon(polygon);
+            drawer.setColor(Color.LIGHT_GRAY);
             drawer.line(vertices[0], vertices[1], vertices[2], vertices[3]);
             drawer.line(vertices[6], vertices[7], vertices[4], vertices[5]);
 
@@ -195,6 +235,7 @@ public class RoadDrawer implements Disposable {
             edgePath.add(cutSegmentStart(from.getCenter(), to.getCenter(), RADIUS));
             edgePath.add(cutSegmentEnd(from.getCenter(), to.getCenter(), RADIUS));
 
+            Gdx.app.log("dev", "from path: (" + from.pos.col + ", " + from.pos.row + ")(" + to.pos.col + ", " + to.pos.row + ")");
 
             allPath.add(edgePath);
 
@@ -217,7 +258,16 @@ public class RoadDrawer implements Disposable {
 
         });
 
+
+
+        debugPath();
         animateDebugCar(delta);
+
+        MapCell house1 = drawMap.getCellAt(debugHouse.get(0).col, debugHouse.get(0).row);
+        MapCell house2 = drawMap.getCellAt(debugHouse.get(2).col, debugHouse.get(2).row);
+
+        drawer.filledRectangle(house1.x + 4, house1.y - 4, 24, -24, Color.MAGENTA);
+        drawer.filledRectangle(house2.x + 4, house2.y - 4, 24, -24, Color.ORANGE);
     }
 
     public static Vector2 extendStart(Vector2 from, Vector2 to, float distance) {
@@ -256,6 +306,24 @@ public class RoadDrawer implements Disposable {
     }
 
 
+    private void debugPath() {
+        //Gdx.app.log("dev", "got path: " + allPath);
+        Gdx.app.log("dev", "= = = = = =");
+
+        allPath.orderedItems().forEach((path) -> {
+
+            Vector2 from = path.get(0);
+            Vector2 to = path.get(1);
+
+
+            Gdx.app.log("dev", "updated path: "
+                + MapCell.remapScreenToCell(from.x, from.y) + " -> "
+                + MapCell.remapScreenToCell(to.x, to.y));
+        });
+
+
+    }
+
     private void animateDebugCar(float delta) {
 
         Array<Array<Vector2>> allEdgePath = allPath.orderedItems();
@@ -284,8 +352,8 @@ public class RoadDrawer implements Disposable {
             }
             else {
                 Bezier<Vector2> connection = new Bezier<>();
-                Vector2 bezierFrom = extendEnd(prevTo, prevFrom, RADIUS * -2.0f);
-                Vector2 bezierTo = extendStart(To, From, RADIUS * -2.0f);
+                Vector2 bezierFrom = extendStart(prevTo, prevFrom, RADIUS);
+                Vector2 bezierTo = extendEnd(To, From, RADIUS);
 
                 connection.set(prevTo, bezierFrom, bezierTo, From);
 
@@ -362,6 +430,62 @@ public class RoadDrawer implements Disposable {
 //        drawBatch.draw(carTexture, first.x + (second.x - first.x) * t, first.y + (second.y - first.y) * t);
 
 
+    }
+
+    public Array<Position> getDebugHouse() {
+        Array<Position> debugHouse = new Array<>(true, 4);
+
+        int x1 = random.nextInt(MAP_WIDTH);
+        int y1 = random.nextInt(MAP_HEIGHT);
+
+        MapCell house1 = drawMap.getCellAt(x1, y1);
+
+
+        Position road1 = MapCell.remapScreenToCell(
+            extendEnd(house1.getCenter(), house1.getCorner(random.nextInt(7)), 20.0f)
+        );
+
+
+        while (road1  == null) {
+             road1 = MapCell.remapScreenToCell(
+                extendEnd(house1.getCenter(), house1.getCorner(random.nextInt(7)), 20.0f)
+            );
+        }
+
+
+        int x2 = random.nextInt(MAP_WIDTH);
+        int y2 = random.nextInt(MAP_HEIGHT);
+
+
+        while (x1 == x2 && y1 == y2) {
+            x2 = random.nextInt(MAP_WIDTH);
+            y2 = random.nextInt(MAP_HEIGHT);
+        }
+
+        MapCell house2 = drawMap.getCellAt(x2, y2);
+
+        Position road2 = MapCell.remapScreenToCell(
+            extendEnd(house2.getCenter(), house2.getCorner(random.nextInt(7)), 20.0f)
+        );
+
+        while (road2 == null || drawMap.getCellAt(road2.col, road2.row).isOccupied()) {
+            road2 = MapCell.remapScreenToCell(
+                extendEnd(house2.getCenter(), house2.getCorner(random.nextInt(7)), 20.0f)
+            );
+        }
+
+        debugHouse.add(new Position(x1, y1));
+        debugHouse.add(road1);
+
+        debugHouse.add(new Position(x2, y2));
+        debugHouse.add(road2);
+
+        Gdx.app.log("dev", "house1: " + house1.pos);
+        Gdx.app.log("dev", "road1: " + road1);
+        Gdx.app.log("dev", "house2: " + house2.pos);
+        Gdx.app.log("dev", "road2: " + road2);
+
+        return debugHouse;
     }
 
     public void begin() {

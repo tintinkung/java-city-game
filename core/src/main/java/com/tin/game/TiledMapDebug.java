@@ -18,6 +18,7 @@ public class TiledMapDebug {
      * @see <a href="https://stackoverflow.com/questions/22299785/libgdx-most-efficient-way-to-draw-a-checkerboard-in-background">sources</a>
      * @param opacity The opacity of all tiles in the layer.
      * @return Checkerboard tile map of black and white according to the class' setting.
+     * @deprecated
      */
     public TiledMapTileLayer getCheckerBoard(float opacity) {
 
@@ -56,6 +57,66 @@ public class TiledMapDebug {
         }
 
         return layer;
+    }
+
+    public TiledMapTileLayer getTileGrid(boolean debug) {
+        Pixmap pixmap = getTileCellPixmap(debug);
+
+        Texture t = new Texture(pixmap);
+        TextureRegion gridCell = new TextureRegion(t, 0, 0, TILE_SIZE, TILE_SIZE);
+
+        TiledMapTileLayer layer = new TiledMapTileLayer(MAP_WIDTH, MAP_HEIGHT, TILE_SIZE, TILE_SIZE);
+
+        for (int x = 0; x < MAP_WIDTH; x++) {
+            for (int y = 0; y < MAP_HEIGHT; y++) {
+                TiledMapTileLayer.Cell cell = new TiledMapTileLayer.Cell();
+                cell.setTile(new StaticTiledMapTile(gridCell));
+                layer.setCell(x, y, cell);
+            }
+        }
+
+        return layer;
+    }
+
+    private static Pixmap getTileCellPixmap(Pixmap pixmap) {
+        pixmap.setColor(new Color(0x3d3d3dff));
+        pixmap.drawLine(0, 0, TILE_SIZE - 1, 0);
+        pixmap.drawLine(TILE_SIZE - 1, 0, TILE_SIZE - 1, TILE_SIZE - 1);
+        pixmap.drawLine(TILE_SIZE - 1, TILE_SIZE - 1, 0, TILE_SIZE - 1);
+        pixmap.drawLine(0, TILE_SIZE, 0, 0);
+
+        pixmap.setColor(new Color(0x2f2f2fff));
+        pixmap.fillRectangle(1, 1, TILE_SIZE - 2, TILE_SIZE - 2);
+
+        return pixmap;
+    }
+
+    private static Pixmap getTileCellPixmap(boolean debug) {
+        Pixmap pixmap = new Pixmap(TILE_SIZE, TILE_SIZE, Pixmap.Format.RGBA8888);
+
+        if(!debug) return getTileCellPixmap(pixmap);
+
+        // top left -> top right
+        pixmap.setColor(Color.RED);
+        pixmap.drawLine(0, 0, TILE_SIZE - 1, 0);
+
+        // top right -> bottom right
+        pixmap.setColor(Color.ORANGE);
+        pixmap.drawLine(TILE_SIZE - 1, 0, TILE_SIZE - 1, TILE_SIZE - 1);
+
+        // bottom right -> bottom left
+        pixmap.setColor(Color.CYAN);
+        pixmap.drawLine(TILE_SIZE - 1, TILE_SIZE - 1, 0, TILE_SIZE - 1);
+
+        // bottom left -> top left
+        pixmap.setColor(Color.GREEN);
+        pixmap.drawLine(0, TILE_SIZE, 0, 0);
+
+        // cell color
+        pixmap.setColor(Color.BLACK);
+        pixmap.fillRectangle(1, 1, TILE_SIZE - 2, TILE_SIZE - 2);
+
+        return pixmap;
     }
 
 
