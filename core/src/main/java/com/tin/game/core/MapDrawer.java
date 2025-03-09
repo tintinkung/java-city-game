@@ -1,4 +1,4 @@
-package com.tin.game;
+package com.tin.game.core;
 
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Pixmap;
@@ -11,7 +11,7 @@ import static com.tin.game.Config.MAP_WIDTH;
 import static com.tin.game.Config.MAP_HEIGHT;
 import static com.tin.game.Config.TILE_SIZE;
 
-public class TiledMapDebug {
+public class MapDrawer {
 
     /**
      * Create a simple black and white checkerboard layer over this tiled map.

@@ -16,13 +16,15 @@ import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
 import com.badlogic.gdx.math.MathUtils;
+import com.tin.game.core.MapDrawer;
+import com.tin.game.core.RoadDrawer;
 
 import static com.tin.game.Config.MAP_HEIGHT;
 import static com.tin.game.Config.MAP_WIDTH;
 
 public class GameScreen extends ScreenAdapter {
 
-    private static final String PROMPT_TEXT = "Click anywhere to generate a new map";
+    private static final String PROMPT_TEXT = "Click anywhere to generate draw road";
     private static final Color PROMPT_COLOR = Color.CORAL;
     private static final float PROMPT_FADE_IN = 2f;
     private static final float PROMPT_FADE_OUT = 4f;
@@ -76,7 +78,7 @@ public class GameScreen extends ScreenAdapter {
         // DEV ONLY: make debug checkerboard layer
         Gdx.app.log("dev", "automated tile map at layer: " + layers.size());
 
-        TiledMapDebug debugLayer = new TiledMapDebug();
+        MapDrawer debugLayer = new MapDrawer();
         TiledMapTileLayer tileGrid = debugLayer.getTileGrid(false);
         layers.add(tileGrid);
         tileGrid.setVisible(true);
