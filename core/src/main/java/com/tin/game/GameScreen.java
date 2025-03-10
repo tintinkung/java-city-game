@@ -8,28 +8,21 @@ import com.badlogic.gdx.graphics.*;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
-import com.badlogic.gdx.graphics.g2d.TextureRegion;
-import com.badlogic.gdx.maps.MapObject;
 import com.badlogic.gdx.maps.tiled.TiledMap;
-import com.badlogic.gdx.maps.MapLayers;
-import com.badlogic.gdx.maps.tiled.TiledMapTile;
-import com.badlogic.gdx.maps.tiled.TiledMapTileLayer;
 import com.badlogic.gdx.maps.tiled.renderers.OrthogonalTiledMapRenderer;
-import com.badlogic.gdx.math.Vector2;
-import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
 import com.badlogic.gdx.math.MathUtils;
-import space.earlygrey.shapedrawer.ShapeDrawer;
+import com.tin.game.core.MapDrawer;
+import com.tin.game.core.RoadDrawer;
 
+import static com.tin.game.Config.MAP_HEIGHT;
+import static com.tin.game.Config.MAP_WIDTH;
 
 public class GameScreen extends ScreenAdapter {
 
-    // CHANGING MAP SIZE RESULT IN DIFFERENT PIXEL DENSITY, SO CHANGE THE DEFAULT DIMENSION TOO
-    public static final int MAP_WIDTH = 20; // default dimension for tile width 32 * 20 = 640 (1:1 pixel density)
-    public static final int MAP_HEIGHT = 15; // default dimension for tile width 32 * 15 = 480 (1:1 pixel density)
-    private static final String PROMPT_TEXT = "Click anywhere to generate a new map";
+    private static final String PROMPT_TEXT = "Click anywhere to generate draw road";
     private static final Color PROMPT_COLOR = Color.CORAL;
     private static final float PROMPT_FADE_IN = 2f;
     private static final float PROMPT_FADE_OUT = 4f;
@@ -40,8 +33,6 @@ public class GameScreen extends ScreenAdapter {
     private Viewport viewport;
     private ScreenViewport screenViewport;
     private OrthogonalTiledMapRenderer renderer;
-    private AutoTiler autoTiler;
-    private int tileSize;
     private BitmapFont font;
     private final GlyphLayout layout = new GlyphLayout();
     private SpriteBatch batch;
@@ -70,35 +61,24 @@ public class GameScreen extends ScreenAdapter {
         font.setColor(PROMPT_COLOR);
         layout.setText(font, PROMPT_TEXT);
 
+        // map setup with default MapDrawer
+        map = new TiledMap();
+
+        MapDrawer drawMap = new MapDrawer(true, false);
+        map.getLayers().add(drawMap);
+        drawMap.setVisible(true);
+
         // road drawing setup
-        road = new RoadDrawer();
-
-        // Auto generate a new map
-        autoTiler = new AutoTiler(MAP_WIDTH, MAP_HEIGHT, Gdx.files.internal("tileset.json"));
-        map = autoTiler.generateMap();
-        tileSize = autoTiler.getTileWidth();
-        MapLayers layers = map.getLayers();
-
-        // DEV ONLY: make debug checkerboard layer
-        Gdx.app.log("dev", "automated tile map at layer: " + layers.size());
-
-        TiledMapDebug debugLayer = new TiledMapDebug(MAP_WIDTH, MAP_HEIGHT, tileSize);
-        TiledMapTileLayer debugCheckerboard = debugLayer.getCheckerBoard(0.25f);
-        layers.add(debugCheckerboard);
-        debugCheckerboard.setVisible(true);
-        debugCheckerboard.setOpacity(0.5f);
+        road = new RoadDrawer(drawMap);
 
         // Setup map renderer
-        final float unitScale = 1f / Math.max(autoTiler.getTileWidth(), autoTiler.getTileHeight());
+        final float unitScale = 1f / Math.max(drawMap.getTileWidth(), drawMap.getTileHeight());
         renderer = new OrthogonalTiledMapRenderer(map, unitScale);
 
         // Setup input processor
         Gdx.input.setInputProcessor(new InputAdapter() {
             @Override
             public boolean touchDown(int screenX, int screenY, int pointer, int button) {
-                // left/right gutter width or the out-of-bound area desktop window
-                float offsetX = (float) (screenViewport.getScreenWidth() - viewport.getScreenWidth()) / 2.0f;
-                float offsetY = (float) (screenViewport.getScreenHeight() - viewport.getScreenHeight()) / 2.0f;
 
                 // Remap touch position to what cell a tile get clicked
                 int column =  MathUtils.floor(
@@ -107,21 +87,25 @@ public class GameScreen extends ScreenAdapter {
                     0.0f, MAP_WIDTH, screenX)
                 );
 
+                if(column < 0 || column >= MAP_WIDTH) return true;
+
                 int row = MathUtils.floor(
                     MathUtils.map(viewport.getTopGutterHeight(),
                     viewport.getTopGutterHeight() + viewport.getScreenHeight(),
                     0.0f, MAP_HEIGHT, screenY)
                 );
-                road.pushRoad(autoTiler.getCellAt(column, row));
+
+                if(row < 0 || row >= MAP_HEIGHT) return true;
+
+                road.pushRoad(column, row);
 
                 return true;
             }
 
             @Override
             public boolean keyDown(int keycode) {
-                // Generate a new procedural map on touch event
+                // TODO: reset map on R key
                 if(keycode == Input.Keys.R) {
-                    map = autoTiler.generateMap();
                     elapsedTime = 0;
                 }
 
@@ -156,7 +140,7 @@ public class GameScreen extends ScreenAdapter {
 
         // road drawing
         road.begin();
-        road.drawActiveRoad();
+        road.drawActiveRoad(delta);
         road.end();
 
         // Render text prompt
