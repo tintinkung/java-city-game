@@ -10,7 +10,8 @@ import com.badlogic.gdx.maps.tiled.TiledMapTileLayer;
 import com.badlogic.gdx.maps.tiled.TiledMapTileSet;
 import com.badlogic.gdx.maps.tiled.tiles.StaticTiledMapTile;
 import com.badlogic.gdx.utils.Array;
-import com.badlogic.gdx.utils.Json;
+import com.badlogic.gdx.utils.GdxRuntimeException;
+import com.tin.game.core.MapCell;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -26,6 +27,8 @@ import static com.tin.game.AutoTiler.TILE_BITS.*;
  *
  * Procedurally generate a terrain map using corner matching "Wang Tiles"
  *  See: http://www.cr31.co.uk/stagecast/wang/2corn.html
+ *
+ * @deprecated Not using rn
  */
 public class AutoTiler {
 
@@ -126,7 +129,7 @@ public class AutoTiler {
                 int x = (col * tileWidth);
                 int y = (tileHeight * mapHeight) - (row * tileHeight);
 
-                final MapCell cell = new MapCell(x, y, tileWidth);
+                final MapCell cell = new MapCell(x, y, col, row);
                 cell.setTile(tileSet.getTile(tileId));
                 mapLayer.setCell(col, row, cell);
             }
@@ -281,8 +284,7 @@ public class AutoTiler {
      */
     private void init(FileHandle tilesetConfigFile) {
         // Load config
-        final Json json = new Json();
-        final TilesetConfig conf = json.fromJson(TilesetConfig.class, tilesetConfigFile);
+        final Config.TileSetJSON conf = Config.getTileSetConfig(tilesetConfigFile);
 
         // Validate texture path
         final FileHandle tilesTextureHandle = Gdx.files.internal(conf.getTexturePath());
@@ -321,7 +323,7 @@ public class AutoTiler {
      *
      * @param config The loaded tileset configuration object
      */
-    private void loadTerrainDefinitions(TilesetConfig config) {
+    private void loadTerrainDefinitions(Config.TileSetJSON config) {
         final Array<Array<String>> terrainDefs = config.getTerrainDefs();
         final HashMap<String, Byte> nameToIdMap = new HashMap<>();
         terrainTypes = new HashMap<>();
@@ -406,11 +408,17 @@ public class AutoTiler {
         return mapLayer.getCell(row, column).getTile();
     }
 
-    public MapCell getCellAt(int row, int column) {
-        return (MapCell) mapLayer.getCell(row, column);
-    }
+    /**
+     * @param row y position
+     * @param column x position
+     * @throws IndexOutOfBoundsException when cell does not exist
+     * @return The MapCell
+     */
+    public MapCell getCellAt(int column, int row) {
+        TiledMapTileLayer.Cell cell = mapLayer.getCell(column, row);
 
-    public float getMapOffset() {
-        return mapLayer.getRenderOffsetX();
+        if(cell == null) throw new GdxRuntimeException(new IndexOutOfBoundsException("Cell does not exist"));
+
+        return (MapCell) mapLayer.getCell(column, row);
     }
 }
