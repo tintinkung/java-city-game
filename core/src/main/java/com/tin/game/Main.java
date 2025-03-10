@@ -10,17 +10,9 @@ public class Main extends Game {
     @Override
     public void create() {
         gameScreen = new GameScreen();
-        Gdx.app.log("Log", "Game Created");
+        Gdx.app.log("Log", "Game Created AAAAAA");
         setScreen(gameScreen);
     }
-
-//    @Override
-//    public void render() {
-//        ScreenUtils.clear(0.15f, 0.15f, 0.2f, 1f);
-//        batch.begin();
-//        batch.draw(image, 140, 210);
-//        batch.end();
-//    }
 
     @Override
     public void dispose() {
