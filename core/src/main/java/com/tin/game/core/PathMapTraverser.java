@@ -6,12 +6,11 @@ import com.badlogic.gdx.utils.ObjectSet;
 import com.tin.game.utils.Edge;
 import com.tin.game.utils.Position;
 
-public class PathMapTraverser {
+public class PathMapTraverser extends AbstractDrawer {
     private final ObjectSet<Edge> visitedEdges;
     private final ObjectSet<Position> visitedNodes;
 
     // handlers
-    private final RoadDrawer.IDrawMap drawMap;
     private final OnTraversal onTraversal;
     private OnCreate onCreate;
 
@@ -25,8 +24,8 @@ public class PathMapTraverser {
         PathGroup newGroup();
     }
 
-    public PathMapTraverser(RoadDrawer.IDrawMap drawMap, OnTraversal onTraversal) {
-        this.drawMap = drawMap;
+    public PathMapTraverser(IMapDrawer drawMap, OnTraversal onTraversal) {
+        super(drawMap);
         this.onTraversal = onTraversal;
         this.visitedEdges = new ObjectSet<>();
         this.visitedNodes = new ObjectSet<>();
@@ -70,7 +69,7 @@ public class PathMapTraverser {
 
     private void traverseFromNode(Position start, PathGroup group) {
 
-        int pathID = group.addNewPath(drawMap.getCellAt(start.col, start.row));
+        int pathID = group.addNewPath(drawMap.getCellAt(start));
 
         startDFT(start, group, pathID);
     }
@@ -86,7 +85,7 @@ public class PathMapTraverser {
         visitedNodes.add(start);
 
         ObjectSet<MapCell> adjacency = onTraversal.getAdjacent(start, new ObjectSet<>());
-        MapCell intersection = drawMap.getCellAt(start.col, start.row);
+        MapCell intersection = drawMap.getCellAt(start);
 
 
         // check for connections
@@ -159,8 +158,8 @@ public class PathMapTraverser {
 
         if (!visitedEdges.contains(edge)) {
             visitedEdges.add(edge);
-            group.addVertexToPath(pathID, drawMap.getCellAt(start.col, start.row));
-            group.addVertexToPath(pathID, drawMap.getCellAt(adjacent.col, adjacent.row));
+            group.addVertexToPath(pathID, drawMap.getCellAt(start));
+            group.addVertexToPath(pathID, drawMap.getCellAt(adjacent));
 
             Gdx.app.log("dev", "traversing: " + start + " -> " + adjacent);
         }
@@ -169,8 +168,8 @@ public class PathMapTraverser {
     private void addPath(Edge edge, PathGroup group, int pathID) {
 
         visitedEdges.add(edge);
-        boolean pos1 = group.addVertexToPath(pathID, drawMap.getCellAt(edge.pos1.col, edge.pos1.row));
-        boolean pos2 = group.addVertexToPath(pathID, drawMap.getCellAt(edge.pos2.col, edge.pos2.row));
+        boolean pos1 = group.addVertexToPath(pathID, drawMap.getCellAt(edge.pos1));
+        boolean pos2 = group.addVertexToPath(pathID, drawMap.getCellAt(edge.pos2));
 
         if(pos1) Gdx.app.log("dev", "added vertex: " + edge.pos1);
         if(pos2) Gdx.app.log("dev", "added vertex: " + edge.pos2);

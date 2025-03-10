@@ -9,8 +9,6 @@ import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.maps.tiled.TiledMap;
-import com.badlogic.gdx.maps.MapLayers;
-import com.badlogic.gdx.maps.tiled.TiledMapTileLayer;
 import com.badlogic.gdx.maps.tiled.renderers.OrthogonalTiledMapRenderer;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
@@ -35,7 +33,6 @@ public class GameScreen extends ScreenAdapter {
     private Viewport viewport;
     private ScreenViewport screenViewport;
     private OrthogonalTiledMapRenderer renderer;
-    private AutoTiler autoTiler;
     private BitmapFont font;
     private final GlyphLayout layout = new GlyphLayout();
     private SpriteBatch batch;
@@ -64,27 +61,18 @@ public class GameScreen extends ScreenAdapter {
         font.setColor(PROMPT_COLOR);
         layout.setText(font, PROMPT_TEXT);
 
+        // map setup with default MapDrawer
+        map = new TiledMap();
 
-
-        // Auto generate a new map
-        autoTiler = new AutoTiler(MAP_WIDTH, MAP_HEIGHT, Gdx.files.internal("tileset.json"));
-        map = autoTiler.generateMap();
-        map.getLayers().get(0).setVisible(false);
-        MapLayers layers = map.getLayers();
+        MapDrawer drawMap = new MapDrawer(true, false);
+        map.getLayers().add(drawMap);
+        drawMap.setVisible(true);
 
         // road drawing setup
-        road = new RoadDrawer(autoTiler::getCellAt);
-
-        // DEV ONLY: make debug checkerboard layer
-        Gdx.app.log("dev", "automated tile map at layer: " + layers.size());
-
-        MapDrawer debugLayer = new MapDrawer();
-        TiledMapTileLayer tileGrid = debugLayer.getTileGrid(false);
-        layers.add(tileGrid);
-        tileGrid.setVisible(true);
+        road = new RoadDrawer(drawMap);
 
         // Setup map renderer
-        final float unitScale = 1f / Math.max(autoTiler.getTileWidth(), autoTiler.getTileHeight());
+        final float unitScale = 1f / Math.max(drawMap.getTileWidth(), drawMap.getTileHeight());
         renderer = new OrthogonalTiledMapRenderer(map, unitScale);
 
         // Setup input processor
@@ -116,9 +104,8 @@ public class GameScreen extends ScreenAdapter {
 
             @Override
             public boolean keyDown(int keycode) {
-                // Generate a new procedural map on touch event
+                // TODO: reset map on R key
                 if(keycode == Input.Keys.R) {
-                    map = autoTiler.generateMap();
                     elapsedTime = 0;
                 }
 

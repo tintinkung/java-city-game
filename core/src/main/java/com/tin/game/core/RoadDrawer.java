@@ -9,6 +9,7 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.*;
 import com.badlogic.gdx.utils.*;
+import com.badlogic.gdx.math.Vector2;
 import com.tin.game.utils.DijkstraPathfinder;
 import com.tin.game.utils.Position;
 import com.tin.game.utils.Vector2D;
@@ -22,38 +23,33 @@ import static com.tin.game.Config.*;
 import static com.tin.game.core.PathMap.SubPath;
 
 // ShaperDrawer based road path drawer
-public class RoadDrawer implements Disposable {
-
+public class RoadDrawer extends AbstractDrawer implements Disposable {
 
     public static final float RADIUS = 10.0f;
     public static final float LINE_WIDTH = 4.0f;
 
     private final PathMap pathMap;
     private final RoadMap roadMap;
-    private final IDrawMap drawMap;
 
     private SpriteBatch drawBatch;
     private ShapeDrawer drawer;
     private Texture drawTexture;
     private int lastRow, lastCol;
 
-    float speed = 0.010f;
-    float current = 0;
+    float speed = 75.0f;
+    float time = 0;
+    float path = 1;
+
     int k = 300; //increase k for more fidelity to the spline
     private Sprite devCar;
-    private TextureRegion carTexture;
 
     private final Random random;
     private Array<Position> debugHouse;
     private final Array<PathMap.SubPath> debugPathFind = new Array<>();
+    private final BSpline<Vector2> debugSpline = new BSpline<>();
 
-    @FunctionalInterface
-    public interface IDrawMap {
-        MapCell getCellAt(int column, int row);
-    }
-
-    public RoadDrawer(IDrawMap drawMap) {
-        this.drawMap = drawMap;
+    public RoadDrawer(IMapDrawer drawMap) {
+        super(drawMap);
         this.roadMap = new RoadMap();
         this.random = new Random();
         this.pathMap = new PathMap(new PathMapTraverser(this.drawMap, roadMap::getAdjacent));
@@ -79,15 +75,14 @@ public class RoadDrawer implements Disposable {
         Pixmap carPixmap = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
         carPixmap.setColor(Color.RED);
         carPixmap.drawPixel(0, 0);
-        carTexture = new TextureRegion(new Texture(carPixmap), 50, 50, 16, 16);
+        TextureRegion carTexture = new TextureRegion(new Texture(carPixmap), 50, 50, 16, 8);
         devCar = new Sprite(carTexture);
-        this.devCar.setPosition(100, 100);
 
         debugHouse = getDebugHouse();
-        MapCell house1 = drawMap.getCellAt(debugHouse.get(0).col, debugHouse.get(0).row);
-        MapCell road1 = drawMap.getCellAt(debugHouse.get(1).col, debugHouse.get(1).row);
-        MapCell house2 = drawMap.getCellAt(debugHouse.get(2).col, debugHouse.get(2).row);
-        MapCell road2 = drawMap.getCellAt(debugHouse.get(3).col, debugHouse.get(3).row);
+        MapCell house1 = drawMap.getCellAt(debugHouse.get(0));
+        MapCell road1 = drawMap.getCellAt(debugHouse.get(1));
+        MapCell house2 = drawMap.getCellAt(debugHouse.get(2));
+        MapCell road2 = drawMap.getCellAt(debugHouse.get(3));
 
         roadMap.pushRoad(house1, road1);
         roadMap.pushRoad(house2, road2);
@@ -149,6 +144,8 @@ public class RoadDrawer implements Disposable {
             });
         });
 
+        /// TODO: extract this to a separate class
+        ///
         Array<SubPath> pathFind = DijkstraPathfinder.dijkstraShortestPath(
             debugHouse.get(0),
             debugHouse.get(2),
@@ -158,30 +155,71 @@ public class RoadDrawer implements Disposable {
 
             Gdx.app.log("path", "= = = path finding output = = =");
 
+            OrderedSet<Vector2> dataset = new OrderedSet<>();
+            OrderedSet<Position> cellData = new OrderedSet<>();
+
             pathFind.forEach((path) -> {
                 Gdx.app.log("path", path.getStart() + " -> " + path.getEnd() + " " + path.debugColor);
+
+                // Check and reverse if path is not flipped
+                Array<Position> latest = cellData.orderedItems();
+                Array<Position> cell = path.getCellVertices().orderedItems();
+                Array<Vector2> draw = path.getDrawVertices().orderedItems();
+
+                if(latest.size >= 1 && !latest.get(latest.size - 1).equals(path.getStart())) {
+                    cell.reverse();
+                    draw.reverse();
+                }
+
+                dataset.addAll(draw);
+                cellData.addAll(cell);
             });
+
+            Array<Vector2> ordered = dataset.orderedItems();
+            Vector2[] items = new Vector2[dataset.size + 2];
+            items[0] = ordered.get(0);
+            for (int i = 0; i < ordered.size; i++) items[i + 1] = ordered.get(i);
+            items[dataset.size + 1] = ordered.get(ordered.size - 1);
+
+            debugSpline.set(items, 3, false);
         }
     }
 
     public void drawActiveRoad(float delta) {
-        //devCar.draw(drawBatch);
         if(roadMap.size < 2) return;
 
+        drawEachRoadCell();
+        drawEachRoadConnection();
+
+        debugPathFinding();
+
+        debugCarSpline();
+        translateCarAlongSpline(delta);
+
+        // draw debugging house. todo: remove later
+        MapCell house1 = drawMap.getCellAt(debugHouse.get(0));
+        MapCell house2 = drawMap.getCellAt(debugHouse.get(2));
+        drawer.filledRectangle(house1.x + 4, house1.y - 4, 24, -24, Color.MAGENTA);
+        drawer.filledRectangle(house2.x + 4, house2.y - 4, 24, -24, Color.ORANGE);
+    }
+
+    private void drawEachRoadCell() {
         roadMap.getPositions().forEach((node) -> {
-            Vector2 center = drawMap.getCellAt(node.col, node.row).getCenter();
+            Vector2 center = drawMap.getCellAt(node).getCenter();
             drawer.setColor(Color.LIGHT_GRAY);
             drawer.circle(center.x, center.y, RADIUS);
             drawer.setColor(Color.GRAY);
             drawer.filledCircle(center, RADIUS - 2);
         });
+    }
 
+    private void drawEachRoadConnection() {
         pathMap.getVisitedEdges().forEach((edge) -> {
             Position fromPos = edge.pos1;
             Position toPos = edge.pos2;
 
-            MapCell from = drawMap.getCellAt(fromPos.col, fromPos.row);
-            MapCell to = drawMap.getCellAt(toPos.col, toPos.row);
+            MapCell from = drawMap.getCellAt(fromPos);
+            MapCell to = drawMap.getCellAt(toPos);
 
             float[] vertices = makeAdjacencyVertices(from, to);
 
@@ -196,16 +234,33 @@ public class RoadDrawer implements Disposable {
             drawer.setColor(Color.LIGHT_GRAY);
             drawer.line(vertices[0], vertices[1], vertices[2], vertices[3]);
             drawer.line(vertices[6], vertices[7], vertices[4], vertices[5]);
-
-            Vector2 centerFrom = Vector2D.cutSegmentStart(from.getCenter(), to.getCenter(), RADIUS);
-            Vector2 centerTo = Vector2D.cutSegmentEnd(from.getCenter(), to.getCenter(), RADIUS);
         });
+    }
 
+    private void debugPathFinding() {
+        debugPathFind.forEach((path) -> {
+            drawer.setColor(path.debugColor);
+            drawer.path(path.getDrawVertices().orderedItems(), 7.0f, true);
+            // Gdx.app.log("dev", "drawing path: " + path.toString());
+        });
+    }
 
+    private void debugCarSpline() {
+        if(debugSpline.controlPoints != null && debugSpline.controlPoints.length > 1) {
+            for (int i = 1; i < 100; i++) {
+                Vector2 vertex1 = new Vector2();
+                Vector2 vertex2 = new Vector2();
 
-        // debugPath();
-        //animateDebugCar(delta);
+                debugSpline.valueAt(vertex1, MathUtils.map(0, 99, 0, 1, i - 1));
+                debugSpline.valueAt(vertex2, MathUtils.map(0, 99, 0, 1, i));
 
+                drawer.setColor(Color.LIME);
+                drawer.line(vertex1, vertex2);
+            }
+        }
+    }
+
+    private void debugAllPath() {
         pathMap.allGroups().forEach((group) -> {
             group.allPath.values().forEach((path) -> {
                 drawer.setColor(path.debugColor);
@@ -216,151 +271,34 @@ public class RoadDrawer implements Disposable {
                 // Gdx.app.log("dev", "drawing path: " + path.toString());
             });
         });
-
-
-        // draw debugging house. todo: remove later
-        MapCell house1 = drawMap.getCellAt(debugHouse.get(0).col, debugHouse.get(0).row);
-        MapCell house2 = drawMap.getCellAt(debugHouse.get(2).col, debugHouse.get(2).row);
-
-
-        // Gdx.app.log("path", "path finding: " + debugPathFind.size);
-
-        debugPathFind.forEach((path) -> {
-            drawer.setColor(path.debugColor);
-            drawer.path(path.getDrawVertices().orderedItems(), 7.0f, true);
-            // Gdx.app.log("dev", "drawing path: " + path.toString());
-        });
-
-
-        drawer.filledRectangle(house1.x + 4, house1.y - 4, 24, -24, Color.MAGENTA);
-        drawer.filledRectangle(house2.x + 4, house2.y - 4, 24, -24, Color.ORANGE);
     }
 
+    private void translateCarAlongSpline(float delta) {
+        if(debugSpline.controlPoints == null) return;
 
-    private void debugPath() {
-        //Gdx.app.log("dev", "got path: " + allPath);
-        Gdx.app.log("dev", "= = = debugPath = = =");
+        Vector2 dxTime = new Vector2();
+        Vector2 dxPath = new Vector2();
+        Vector2 out = new Vector2();
+        Vector2 angle = new Vector2();
 
-        pathMap.allGroups().forEach((group) -> {
-            group.allPaths().forEach((path) -> {
-
-                Position from = path.getStart();
-                Position to = path.getEnd();
-
-
-                Gdx.app.log("dev", "current path: "
-                    + from + " -> " + to);
-            });
-        });
-
-    }
-
-    private void animateDebugCar(float delta) {
-
-//        Array<Array<Vector2>> allEdgePath = allPath.orderedItems();
-//        OrderedSet<Vector2> pointSet = new OrderedSet<>();
-//
-//        for (Array<Vector2> edgePath : allEdgePath) {
-//            drawer.line(edgePath.get(1), edgePath.get(0));
-//        }
-//
-//        pointSet.add(allEdgePath.get(0).get(0));
-//        pointSet.add(allEdgePath.get(0).get(1));
-//
-//        for (int i = 0; i < allEdgePath.size; i++) {
-//            if(i == 0) continue;
-//            Vector2 prevFrom = allEdgePath.get(i - 1).get(0);
-//            Vector2 prevTo = allEdgePath.get(i - 1).get(1);
-//            Vector2 From = allEdgePath.get(i).get(0);
-//            Vector2 To = allEdgePath.get(i).get(1);
-//
-//            if(arePointsCollinear(prevFrom, prevTo, From, To)) {
-//                //drawer.line(prevTo, From);
-//                pointSet.add(prevFrom);
-//                pointSet.add(prevTo);
-//                pointSet.add(From);
-//                pointSet.add(To);
-//            }
-//            else {
-//                Bezier<Vector2> connection = new Bezier<>();
-//                Vector2 bezierFrom = extendStart(prevTo, prevFrom, RADIUS);
-//                Vector2 bezierTo = extendEnd(To, From, RADIUS);
-//
-//                connection.set(prevTo, bezierFrom, bezierTo, From);
-//
-//
-//
-//                pointSet.add(prevFrom);
-//                pointSet.add(prevTo);
-//
-//                //Gdx.app.log("dev", "bezier start: " + prevTo.toString());
-//
-//                Vector2 dv1 = new Vector2();
-//                Vector2 dv2 = new Vector2();
-//                Vector2 dv3 = new Vector2();
-//                Vector2 dv4 = new Vector2();
-//
-//                //Bezier.cubic(dv1, 0.5f, prevTo, bezierFrom, bezierTo, From, tmp);
-//
-//                connection.valueAt(dv1, 0.2f);
-//                connection.valueAt(dv2, 0.4f);
-//                connection.valueAt(dv3, 0.6f);
-//                connection.valueAt(dv4, 0.8f);
-//
-//                pointSet.add(dv1);
-//                pointSet.add(dv2);
-//                pointSet.add(dv3);
-//                pointSet.add(dv4);
-//
-//
-//
-//                //Gdx.app.log("dev", "bezier end: " + From.toString());
-//
-//                pointSet.add(From);
-//                pointSet.add(To);
-//
-////                Array<Vector2> debugPath = new Array<>();
-////                debugPath.add(prevTo);
-////                debugPath.add(dv1);
-////                debugPath.add(dv2);
-////                debugPath.add(dv3);
-////                debugPath.add(dv4);
-////                debugPath.add(From);
-////
-////                drawer.path(debugPath, true);
-//
-//
-//            }
-//
-//
-////            if(prevTo.dst(From) > RADIUS) {
-////                Gdx.app.log("dev", "sus");
-////            }
-//        }
-//
-//        Array<Vector2> points = pointSet.orderedItems();
-//        drawer.path(points, 1.0f, JoinType.NONE, true);
-
-//        if(points.size <= 2) return;
-//
-//        current += delta * speed;
-//        if(current >= 1)
-//            current -= 1;
-//        float place = current * k;
-//        Vector2 first = points.get((int) place);
-//        Vector2 second;
-//        if(((int)place+1) < k)
-//        {
-//            second = points.get((int) place + 1);
-//        }
-//        else
-//        {
-//            second = points.get(0); //or finish, in case it does not loop.
-//        }
-//        float t = place - ((int)place); //the decimal part of place
-//        drawBatch.draw(carTexture, first.x + (second.x - first.x) * t, first.y + (second.y - first.y) * t);
+        debugSpline.derivativeAt(dxTime, time);
+        debugSpline.derivativeAt(dxPath, path);
+        time += (delta * speed / debugSpline.spanCount) / dxTime.len();
 
 
+        if(time >= 0 && time < 1.0f) path -= (delta * speed / debugSpline.spanCount) / dxPath.len();
+        if(time >= 1.0f) path += (delta * speed / debugSpline.spanCount) / dxPath.len(); // time 1, 1.1, 1.2, 2
+        if(path > 1) time = 0;
+
+        debugSpline.derivativeAt(angle, path);
+        debugSpline.valueAt(out, path);
+
+        float facing = angle.angleDeg();
+
+        devCar.flip(true, true);
+        devCar.setPosition(out.x, out.y);
+        devCar.setRotation(facing);
+        devCar.draw(drawBatch);
     }
 
     public Array<Position> getDebugHouse() {
@@ -399,7 +337,7 @@ public class RoadDrawer implements Disposable {
             Vector2D.extendEnd(house2.getCenter(), house2.getCorner(random.nextInt(7)), 20.0f)
         );
 
-        while (road2 == null || drawMap.getCellAt(road2.col, road2.row).isOccupied()) {
+        while (road2 == null || drawMap.getCellAt(road2).isOccupied()) {
             road2 = MapCell.remapScreenToCell(
                 Vector2D.extendEnd(house2.getCenter(), house2.getCorner(random.nextInt(7)), 20.0f)
             );

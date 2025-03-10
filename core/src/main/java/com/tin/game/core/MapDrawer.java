@@ -6,12 +6,34 @@ import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.maps.tiled.TiledMapTileLayer;
 import com.badlogic.gdx.maps.tiled.tiles.StaticTiledMapTile;
+import com.badlogic.gdx.utils.GdxRuntimeException;
+import com.tin.game.utils.Position;
 
 import static com.tin.game.Config.MAP_WIDTH;
 import static com.tin.game.Config.MAP_HEIGHT;
 import static com.tin.game.Config.TILE_SIZE;
 
-public class MapDrawer {
+public class MapDrawer extends TiledMapTileLayer implements IMapDrawer {
+
+    public MapDrawer() {
+        super(MAP_WIDTH, MAP_HEIGHT, TILE_SIZE, TILE_SIZE);
+    }
+
+    /**
+     * Creates TiledMap drawer layer with default tile grid
+     * populated with {@link MapCell}
+     */
+    public MapDrawer(boolean populate) {
+        super(MAP_WIDTH, MAP_HEIGHT, TILE_SIZE, TILE_SIZE);
+
+        if(populate) initTileGrid(this, false);
+    }
+
+    public MapDrawer(boolean populate, boolean debug) {
+        super(MAP_WIDTH, MAP_HEIGHT, TILE_SIZE, TILE_SIZE);
+
+        if(populate) initTileGrid(this, debug);
+    }
 
     /**
      * Create a simple black and white checkerboard layer over this tiled map.
@@ -20,7 +42,7 @@ public class MapDrawer {
      * @return Checkerboard tile map of black and white according to the class' setting.
      * @deprecated
      */
-    public TiledMapTileLayer getCheckerBoard(float opacity) {
+    public static TiledMapTileLayer makeCheckerBoard(float opacity) {
 
         Pixmap pixmap = new Pixmap(TILE_SIZE * 2, TILE_SIZE, Pixmap.Format.RGBA8888);
         pixmap.setColor(new Color(255, 255, 255, opacity)); // add your 1 color here
@@ -37,7 +59,7 @@ public class MapDrawer {
 
         for (int x = 0; x < MAP_WIDTH; x++) {
             for (int y = 0; y < MAP_HEIGHT; y++) {
-                TiledMapTileLayer.Cell cell = new TiledMapTileLayer.Cell();
+                MapDrawer.Cell cell = new MapDrawer.Cell();
                 cell.setTile(new StaticTiledMapTile(reg1));
                 if (y % 2 != 0) {
                     if (x % 2 != 0) {
@@ -59,23 +81,29 @@ public class MapDrawer {
         return layer;
     }
 
-    public TiledMapTileLayer getTileGrid(boolean debug) {
+    public static MapDrawer newTileGird(boolean debug) {
+        return initTileGrid(new MapDrawer(), debug);
+    }
+
+    private static MapDrawer initTileGrid(MapDrawer out, boolean debug) {
         Pixmap pixmap = getTileCellPixmap(debug);
 
         Texture t = new Texture(pixmap);
         TextureRegion gridCell = new TextureRegion(t, 0, 0, TILE_SIZE, TILE_SIZE);
 
-        TiledMapTileLayer layer = new TiledMapTileLayer(MAP_WIDTH, MAP_HEIGHT, TILE_SIZE, TILE_SIZE);
+        for (int row = 0; row < MAP_HEIGHT; row++) {
+            for (int col = 0; col < MAP_WIDTH; col++) {
+                int x = (col * TILE_SIZE);
+                int y = (TILE_SIZE * MAP_HEIGHT) - (row * TILE_SIZE);
 
-        for (int x = 0; x < MAP_WIDTH; x++) {
-            for (int y = 0; y < MAP_HEIGHT; y++) {
-                TiledMapTileLayer.Cell cell = new TiledMapTileLayer.Cell();
+                final MapCell cell = new MapCell(x, y, col, row);
+
                 cell.setTile(new StaticTiledMapTile(gridCell));
-                layer.setCell(x, y, cell);
+                out.setCell(col, row, cell);
             }
         }
 
-        return layer;
+        return out;
     }
 
     private static Pixmap getTileCellPixmap(Pixmap pixmap) {
@@ -119,5 +147,16 @@ public class MapDrawer {
         return pixmap;
     }
 
+    public MapCell getCellAt(int column, int row) {
+        MapCell cell = (MapCell) getCell(column, row);
 
+        if(cell == null) throw new GdxRuntimeException(new IndexOutOfBoundsException("Cell does not exist"));
+
+        return cell;
+    }
+
+    @Override
+    public MapCell getCellAt(Position position) {
+        return getCellAt(position.col, position.row);
+    }
 }

@@ -27,6 +27,8 @@ import static com.tin.game.AutoTiler.TILE_BITS.*;
  *
  * Procedurally generate a terrain map using corner matching "Wang Tiles"
  *  See: http://www.cr31.co.uk/stagecast/wang/2corn.html
+ *
+ * @deprecated Not using rn
  */
 public class AutoTiler {
 

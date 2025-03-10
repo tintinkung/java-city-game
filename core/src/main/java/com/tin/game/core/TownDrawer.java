@@ -9,6 +9,8 @@ import java.util.Random;
 import static com.tin.game.Config.MAP_WIDTH;
 import static com.tin.game.Config.MAP_HEIGHT;
 
+/// TODO: move house generation to here
+
 public class TownDrawer {
 
     private final Random random;

@@ -1,6 +1,5 @@
 package com.tin.game.core;
 
-import com.badlogic.gdx.maps.tiled.TiledMapTileLayer;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.IntMap;
@@ -9,7 +8,7 @@ import com.tin.game.utils.Position;
 import static com.tin.game.Config.*;
 import static com.tin.game.Config.MAP_WIDTH;
 
-public class MapCell extends TiledMapTileLayer.Cell {
+public class MapCell extends MapDrawer.Cell {
 
     public final int x;
     public final int y;
