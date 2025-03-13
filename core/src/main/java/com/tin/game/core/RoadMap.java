@@ -1,6 +1,7 @@
 package com.tin.game.core;
 
 import com.badlogic.gdx.utils.ObjectSet;
+import com.tin.game.utils.Position;
 
 /**
  * Adjacency List Structure implementation for road map.
@@ -8,7 +9,7 @@ import com.badlogic.gdx.utils.ObjectSet;
  */
 public class RoadMap extends AbstractRoadMap {
 
-    RoadMap() {
+    public RoadMap() {
         super();
     }
 
@@ -26,20 +27,45 @@ public class RoadMap extends AbstractRoadMap {
     public void removeRoad(MapCell cell) {
         ObjectSet<MapCell> adjacency = getAdjacent(cell.pos);
 
+        if(adjacency == null) return;
+
         // clear connections
         adjacency.forEach((adj) -> {
-            getAdjacent(adj.pos).remove(cell);
+            if(getAdjacent(adj.pos) != null) {
+                getAdjacent(adj.pos).remove(cell);
+            }
         });
 
         //delete itself
         remove(adjacency);
     }
 
+    public void excludeConnection(Position start, MapCell cell, Position end) {
+
+        ObjectSet<MapCell> adjacency = getAdjacent(cell.pos);
+
+        // clear connections
+        adjacency.forEach((adj) -> {
+            if(adj != null && !adj.pos.equals(start) && !adj.pos.equals(end)) {
+
+                getAdjacent(adj.pos).remove(cell);
+                if(getAdjacent(adj.pos).size == 0) {
+                    remove(getAdjacent(adj.pos));
+                }
+
+                getAdjacent(cell.pos).remove(adj);
+            }
+        });
+    }
+
+
+
     @Override
     public void putIfAbsent(MapCell cell, ObjectSet<MapCell> adjacency) {
         if(hasRoad(cell.pos)) return;
 
         cell.setType(MapCell.CELL_TYPE.ROAD);
+
 
         put(cell.pos, adjacency);
     }

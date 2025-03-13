@@ -24,7 +24,7 @@ public class PathMapTraverser extends AbstractDrawer {
         PathGroup newGroup();
     }
 
-    public PathMapTraverser(IMapDrawer drawMap, OnTraversal onTraversal) {
+    public PathMapTraverser(IGameMap drawMap, OnTraversal onTraversal) {
         super(drawMap);
         this.onTraversal = onTraversal;
         this.visitedEdges = new ObjectSet<>();
@@ -91,7 +91,9 @@ public class PathMapTraverser extends AbstractDrawer {
         // check for connections
         switch (adjacency.size) {
             case 0:
-                throw new GdxRuntimeException("A node has 0 adjacency");
+                // throw new GdxRuntimeException("A node has 0 adjacency");
+                Gdx.app.log("dev", "A node has 0 adjacency");
+                return;
             case 1:
                 Gdx.app.log("dev", "end path: " + start + " -> " + adjacency.first().pos );
                 group.allPath.get(pathID).endPath(start);

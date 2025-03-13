@@ -3,7 +3,7 @@ package com.tin.game.core;
 import com.tin.game.utils.Position;
 
 @FunctionalInterface
-public interface IMapDrawer {
+public interface IGameMap {
 
     /**
      * @param row y position
