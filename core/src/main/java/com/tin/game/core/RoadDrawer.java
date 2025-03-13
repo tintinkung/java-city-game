@@ -23,6 +23,10 @@ import static com.tin.game.Config.*;
 import static com.tin.game.core.PathMap.SubPath;
 
 // ShaperDrawer based road path drawer
+
+/**
+ * @deprecated
+ */
 public class RoadDrawer extends AbstractDrawer implements Disposable {
 
     public static final float RADIUS = 10.0f;
@@ -48,7 +52,7 @@ public class RoadDrawer extends AbstractDrawer implements Disposable {
     private final Array<PathMap.SubPath> debugPathFind = new Array<>();
     private final BSpline<Vector2> debugSpline = new BSpline<>();
 
-    public RoadDrawer(IMapDrawer drawMap) {
+    public RoadDrawer(IGameMap drawMap) {
         super(drawMap);
         this.roadMap = new RoadMap();
         this.random = new Random();

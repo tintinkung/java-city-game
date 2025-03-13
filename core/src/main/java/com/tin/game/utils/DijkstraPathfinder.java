@@ -28,7 +28,7 @@ public class DijkstraPathfinder {
     }
 
     public static Array<SubPath> dijkstraShortestPath(Position nodeA, Position nodeB, PathGroup pathGroup) {
-        if (!pathGroup.containCell(nodeA) || !pathGroup.containCell(nodeB)) {
+        if (pathGroup == null || !pathGroup.containCell(nodeA) || !pathGroup.containCell(nodeB)) {
             return null; // No path exists if they are in different PathGroups
         }
 

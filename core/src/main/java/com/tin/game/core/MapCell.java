@@ -3,12 +3,13 @@ package com.tin.game.core;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.IntMap;
+import com.tin.game.system.RoadDrawer;
 import com.tin.game.utils.Position;
 
 import static com.tin.game.Config.*;
 import static com.tin.game.Config.MAP_WIDTH;
 
-public class MapCell extends MapDrawer.Cell {
+public class MapCell extends GameMap.Cell {
 
     public final int x;
     public final int y;
@@ -46,7 +47,8 @@ public class MapCell extends MapDrawer.Cell {
         NONE(0),
         ROAD(1),
         HOUSE(2),
-        STORE(3);
+        STORE(3),
+        HIGHWAY(4);
 
         private final int value;
 
@@ -97,8 +99,8 @@ public class MapCell extends MapDrawer.Cell {
 
     public MapCell(int screenX, int screenY, int col, int row) {
         super();
-        this.x = screenX;
-        this.y = screenY;
+        this.x = screenX + OFFSET_X;
+        this.y = screenY + OFFSET_Y;
         this.pos = new Position(col, row);
         this.type = CELL_TYPE.NONE;
         this.center = new Vector2();
@@ -166,16 +168,16 @@ public class MapCell extends MapDrawer.Cell {
      */
     public static Position remapScreenToCell(float screenX, float screenY) {
         int column =  MathUtils.floor(
-            MathUtils.map(0.0f,
-                MAP_WIDTH * TILE_SIZE,
+            MathUtils.map(OFFSET_X,
+                MAP_WIDTH * TILE_SIZE + OFFSET_X,
                 0.0f, MAP_WIDTH, screenX)
         );
 
         if(column < 0 || column >= MAP_WIDTH) return null;
 
         int row = MathUtils.floor(
-            MathUtils.map(0.0f,
-                MAP_HEIGHT * TILE_SIZE,
+            MathUtils.map(OFFSET_Y,
+                MAP_HEIGHT * TILE_SIZE + OFFSET_Y,
                 MAP_HEIGHT, 0.0f, screenY)
         );
 
