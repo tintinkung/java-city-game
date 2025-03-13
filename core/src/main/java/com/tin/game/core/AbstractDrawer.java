@@ -5,9 +5,9 @@ public abstract class AbstractDrawer {
     /**
      * Map handler for requesting {@link MapCell}
      */
-    protected IMapDrawer drawMap;
+    protected IGameMap drawMap;
 
-    public AbstractDrawer(IMapDrawer drawMap) {
+    public AbstractDrawer(IGameMap drawMap) {
         this.drawMap = drawMap;
     }
 }

@@ -11,8 +11,9 @@ public class Config {
     public static final String TITLE = "Tin's City Game";
 
     // Map and Tile settings
-    public static final int DEFAULT_WIDTH = 640;
-    public static final int DEFAULT_HEIGHT = 480;
+    public static final int SCREEN_WIDTH = 1280;
+    public static final int SCREEN_HEIGHT = 720;
+
 
     // Game Grid tile/cell size in pixel
     public static final int TILE_SIZE = 32;
@@ -21,9 +22,13 @@ public class Config {
     public static final int MAP_WIDTH = 20;
 
     // default dimension for tile width 32 * 15 = 480
-    public static final int MAP_HEIGHT = 15;
+    public static final int MAP_HEIGHT = 20;
 
-    public static final int STEP = 1/60;
+    public static final int GAME_WIDTH = MAP_WIDTH * TILE_SIZE;
+    public static final int GAME_HEIGHT = MAP_HEIGHT * TILE_SIZE;
+
+    public static final int OFFSET_X = (SCREEN_WIDTH - GAME_WIDTH) / 2;
+    public static final int OFFSET_Y = (SCREEN_HEIGHT - GAME_HEIGHT) / 2;
 
     public static class GameStates {
         public static final int LOADING = 10000;
