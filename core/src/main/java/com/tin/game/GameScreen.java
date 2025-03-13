@@ -10,15 +10,16 @@ import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.maps.tiled.TiledMap;
 import com.badlogic.gdx.maps.tiled.renderers.OrthogonalTiledMapRenderer;
+import com.badlogic.gdx.utils.CharArray;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
 import com.badlogic.gdx.math.MathUtils;
-import com.tin.game.core.MapDrawer;
-import com.tin.game.core.RoadDrawer;
+import com.tin.game.core.GameMap;
+import com.tin.game.core.MapCell;
+import com.tin.game.system.*;
 
-import static com.tin.game.Config.MAP_HEIGHT;
-import static com.tin.game.Config.MAP_WIDTH;
+import static com.tin.game.Config.*;
 
 public class GameScreen extends ScreenAdapter {
 
@@ -38,9 +39,17 @@ public class GameScreen extends ScreenAdapter {
     private SpriteBatch batch;
 
     // road
-    private RoadDrawer road;
+    GameData gameData;
+
+    private RoadDrawer roadDrawer;
+    private TownDrawer townDrawer;
+    private PathDrawer pathDrawer;
 
     private float elapsedTime = 0;
+
+    public GameScreen() {
+        this.gameData = new GameData();
+    }
 
     @Override
     public void show() {
@@ -48,7 +57,7 @@ public class GameScreen extends ScreenAdapter {
 
         // Setup camera
         camera = new OrthographicCamera();
-        viewport = new FitViewport(MAP_WIDTH, MAP_HEIGHT, camera);
+        viewport = new FitViewport(SCREEN_WIDTH, SCREEN_HEIGHT, camera);
 
         // Setup GUI camera
         guiCam = new OrthographicCamera();
@@ -64,40 +73,57 @@ public class GameScreen extends ScreenAdapter {
         // map setup with default MapDrawer
         map = new TiledMap();
 
-        MapDrawer drawMap = new MapDrawer(true, false);
+        GameMap drawMap = gameData.getGameMap();
+        GameMap background = GameMap.newBlankMap(SCREEN_WIDTH, SCREEN_HEIGHT);
+        map.getLayers().add(background);
         map.getLayers().add(drawMap);
         drawMap.setVisible(true);
+        drawMap.setOffsetX(OFFSET_X);
+        drawMap.setOffsetY(-OFFSET_Y);
 
         // road drawing setup
-        road = new RoadDrawer(drawMap);
+        TownSystem town = gameData.getTownSystem();
+        roadDrawer = new RoadDrawer(drawMap, new Color(0x7f7f7fff));
+        townDrawer = new TownDrawer(drawMap, Color.WHITE);
+        pathDrawer = new PathDrawer(drawMap, new Color(0,0,0,0.25f));
 
         // Setup map renderer
         final float unitScale = 1f / Math.max(drawMap.getTileWidth(), drawMap.getTileHeight());
-        renderer = new OrthogonalTiledMapRenderer(map, unitScale);
+        renderer = new OrthogonalTiledMapRenderer(map, 1f);
 
         // Setup input processor
+        town.scheduleTownPopulation();
+        town.startPopulate();
         Gdx.input.setInputProcessor(new InputAdapter() {
             @Override
             public boolean touchDown(int screenX, int screenY, int pointer, int button) {
 
+                // Extract game width from screen width ignoring UI
+                float uiWidth = (viewport.getScreenWidth() * ((SCREEN_WIDTH - GAME_WIDTH) / (float) SCREEN_WIDTH));
+                float uiHeight = (viewport.getScreenHeight() * ((SCREEN_HEIGHT - GAME_HEIGHT) / (float) SCREEN_HEIGHT) );
+                float gameWidth = viewport.getScreenWidth() - uiWidth;
+                float gameHeight = viewport.getScreenHeight() - uiHeight;
+                float offsetX = uiWidth / 2f;
+                float offsetY = uiHeight / 2f;
+
                 // Remap touch position to what cell a tile get clicked
                 int column =  MathUtils.floor(
-                    MathUtils.map(viewport.getLeftGutterWidth(),
-                    viewport.getLeftGutterWidth() + viewport.getScreenWidth(),
+                    MathUtils.map(viewport.getLeftGutterWidth() + offsetX,
+                    viewport.getLeftGutterWidth() + gameWidth + offsetX,
                     0.0f, MAP_WIDTH, screenX)
                 );
 
                 if(column < 0 || column >= MAP_WIDTH) return true;
 
                 int row = MathUtils.floor(
-                    MathUtils.map(viewport.getTopGutterHeight(),
-                    viewport.getTopGutterHeight() + viewport.getScreenHeight(),
+                    MathUtils.map(viewport.getTopGutterHeight() + offsetY,
+                    viewport.getTopGutterHeight() + gameHeight + offsetY,
                     0.0f, MAP_HEIGHT, screenY)
                 );
 
                 if(row < 0 || row >= MAP_HEIGHT) return true;
 
-                road.pushRoad(column, row);
+                gameData.pushRoad(column, row);
 
                 return true;
             }
@@ -139,14 +165,43 @@ public class GameScreen extends ScreenAdapter {
         elapsedTime += delta;
 
         // road drawing
-        road.begin();
-        road.drawActiveRoad(delta);
-        road.end();
+        roadDrawer.begin();
+        if(gameData.getRoadMap().size >= 2) {
+            roadDrawer.drawEachRoadCell(gameData.getRoadMap());
+            roadDrawer.drawEachRoadConnection(gameData.getPathMap());
+        }
+        roadDrawer.end();
+
+        pathDrawer.begin();
+        pathDrawer.drawAllPath(gameData.getPathSystem().getAllPath());
+        pathDrawer.end();
+
+        gameData.getTownSystem().carBatch.begin();
+        gameData.getTownSystem().animateAllCar(delta);
+        gameData.getTownSystem().carBatch.end();
+
+        townDrawer.begin();
+        townDrawer.drawAllHouse(gameData.getTownSystem().getHouseMap());
+        townDrawer.drawAllStore(gameData.getTownSystem().getStoreMap());
+        townDrawer.end();
+
+        batch.begin();
+        gameData.getTownSystem().getAllStore().forEach((store) -> {
+            GameMap drawMap = gameData.getGameMap();
+
+            MapCell pos = drawMap.getCellAt(store);
+
+            font.getData().setScale(1.75f);
+            font.draw(batch, String.valueOf(store.needed()), pos.x + TILE_SIZE - 8, pos.y - TILE_SIZE + 8);
+        });
+        batch.end();
 
         // Render text prompt
         screenViewport.apply(true);
-        batch.setProjectionMatrix(guiCam.combined);
+        // batch.setProjectionMatrix(guiCam.combined);
         batch.begin();
+        font.getData().setScale(1.0f);
+
         font.setColor(PROMPT_COLOR.r, PROMPT_COLOR.g, PROMPT_COLOR.b,
             (elapsedTime - PROMPT_FADE_IN) % PROMPT_FADE_OUT);
         font.draw(batch, PROMPT_TEXT,
@@ -160,7 +215,7 @@ public class GameScreen extends ScreenAdapter {
         super.dispose();
         map.dispose();
         font.dispose();
-        road.dispose();
+        roadDrawer.dispose();
         batch.dispose();
     }
 }
